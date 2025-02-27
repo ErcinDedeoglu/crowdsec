@@ -13,6 +13,12 @@ services:
         source: docker
         labels:
           type: docker
+        containers_id:
+          - "*"        # Monitor all containers
+        # OR specify specific containers:
+        # containers_name:
+        #   - container1
+        #   - container2
         ---
         filenames:
           - /var/log/auth.log
