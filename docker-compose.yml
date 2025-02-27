@@ -1,0 +1,43 @@
+version: "3.4"
+
+services:
+  crowdsec:
+    image: dublok/crowdsec:latest
+    container_name: crowdsec
+    expose:
+      - 8080
+    environment:
+      PGID: "1000"
+      DOCKER_LOGS: "true"
+      DISABLE_AGENT: "false"
+      CROWDSEC_SOURCES: |
+        source: docker
+        labels:
+          type: docker
+        ---
+        filenames:
+          - /var/log/auth.log
+        labels:
+          type: syslog
+        ---
+        filenames:
+          - /var/log/traefik/access.log
+        labels:
+          type: traefik
+        format: json
+    volumes:
+      - crowdsec_data:/var/lib/crowdsec/data
+      - crowdsec_config:/etc/crowdsec
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log/auth.log:/var/log/auth.log:ro
+      - /var/log/traefik/access.log:/var/log/traefik/access.log:ro
+    restart: unless-stopped
+
+volumes:
+  crowdsec_data:
+  crowdsec_config:
+
+networks:
+  default:
+    external: true
+    name: proxy
