@@ -4,4 +4,4 @@ if [ ! -z "$CROWDSEC_SOURCES" ]; then
     echo "$CROWDSEC_SOURCES" > /etc/crowdsec/acquis.yaml
 fi
 # Execute original entrypoint
-exec /entrypoint.sh "$@"
+exec /docker_start.sh "$@"

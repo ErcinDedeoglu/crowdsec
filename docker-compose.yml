@@ -1,5 +1,4 @@
 version: "3.4"
-
 services:
   crowdsec:
     image: dublok/crowdsec:latest
@@ -32,11 +31,9 @@ services:
       - /var/log/auth.log:/var/log/auth.log:ro
       - /var/log/traefik/access.log:/var/log/traefik/access.log:ro
     restart: unless-stopped
-
 volumes:
   crowdsec_data:
   crowdsec_config:
-
 networks:
   default:
     external: true
