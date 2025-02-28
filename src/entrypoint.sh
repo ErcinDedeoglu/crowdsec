@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define the bouncer token file path in the volume
+BOUNCER_TOKEN_FILE="/etc/crowdsec/bouncer_token.txt"
+
 # Create acquis.yaml from environment variables
 if [ ! -z "$CROWDSEC_SOURCES" ]; then
     echo "$CROWDSEC_SOURCES" > /etc/crowdsec/acquis.yaml
@@ -7,28 +10,57 @@ fi
 
 # Update the CrowdSec hub index
 echo "Updating CrowdSec hub index..."
-cscli hub update || (echo "Hub update failed" && exit 1)
+cscli hub update
 
 # Install and enable parsers
 echo "Installing and enabling parsers..."
-cscli parsers install crowdsecurity/traefik-logs && \
-cscli parsers enable crowdsecurity/traefik-logs || (echo "Failed to install/enable traefik-logs parser" && exit 1)
+PARSERS=(
+    "crowdsecurity/traefik-logs"
+    "crowdsecurity/docker-logs"
+    "crowdsecurity/syslog-logs"
+)
 
-cscli parsers install crowdsecurity/docker-logs && \
-cscli parsers enable crowdsecurity/docker-logs || (echo "Failed to install/enable docker-logs parser" && exit 1)
-
-cscli parsers install crowdsecurity/syslog-logs && \
-cscli parsers enable crowdsecurity/syslog-logs || (echo "Failed to install/enable syslog-logs parser" && exit 1)
+for parser in "${PARSERS[@]}"; do
+    echo "Installing and enabling parser: $parser"
+    cscli parsers install "$parser" && \
+    cscli parsers enable "$parser" || \
+    (echo "Failed to install/enable parser: $parser" && exit 1)
+done
 
 # Install collections
 echo "Installing collections..."
-cscli collections install crowdsecurity/linux || (echo "Failed to install linux collection" && exit 1)
-cscli collections install crowdsecurity/traefik || (echo "Failed to install traefik collection" && exit 1)
-cscli collections install crowdsecurity/whitelist-good-actors || (echo "Failed to install whitelist-good-actors collection" && exit 1)
-cscli collections install crowdsecurity/base-http-scenarios || (echo "Failed to install base-http-scenarios collection" && exit 1)
-cscli collections install crowdsecurity/http-cve || (echo "Failed to install http-cve collection" && exit 1)
-cscli collections install crowdsecurity/sshd || (echo "Failed to install sshd collection" && exit 1)
-cscli collections install crowdsecurity/http-dos || (echo "Failed to install http-dos collection" && exit 1)
+COLLECTIONS=(
+    "crowdsecurity/linux"
+    "crowdsecurity/traefik"
+    "crowdsecurity/whitelist-good-actors"
+    "crowdsecurity/base-http-scenarios"
+    "crowdsecurity/http-cve"
+    "crowdsecurity/sshd"
+    "crowdsecurity/http-dos"
+)
+
+for collection in "${COLLECTIONS[@]}"; do
+    echo "Installing collection: $collection"
+    cscli collections install "$collection" || \
+    (echo "Failed to install collection: $collection" && exit 1)
+done
+
+# Check if bouncer token already exists
+if [ ! -f "$BOUNCER_TOKEN_FILE" ]; then
+    echo "Generating new bouncer token..."
+    # Create bouncer and save token
+    cscli bouncers add bouncer-traefik -o raw > "$BOUNCER_TOKEN_FILE"
+    if [ $? -eq 0 ]; then
+        echo "Bouncer token generated and saved to $BOUNCER_TOKEN_FILE"
+        # Set proper permissions
+        chmod 600 "$BOUNCER_TOKEN_FILE"
+    else
+        echo "Failed to generate bouncer token"
+        exit 1
+    fi
+else
+    echo "Bouncer token already exists at $BOUNCER_TOKEN_FILE"
+fi
 
 # Execute original entrypoint
 exec /docker_start.sh "$@"
